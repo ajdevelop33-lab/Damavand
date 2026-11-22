@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>داشبورد هوشمند مانیتورینگ شبکه و تیکت‌ها</title>
+    <!-- فونت وزیرمتن -->
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- آیکون‌های Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Vazirmatn', 'sans-serif'],
+                    },
+                    colors: {
+                        darkbg: '#070B14',
+                        darkcard: '#0F1626',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            overflow-x: hidden;
+        }
+        /* پترن نقطه‌ای ظریف در پس‌زمینه */
+        .bg-grid-pattern {
+            background-image: radial-gradient(rgba(99, 102, 241, 0.12) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        /* انیمیشن پالس وضعیت آنلاین */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.85); opacity: 0.8; }
+            100% { transform: scale(2.4); opacity: 0; }
+        }
+        .pulse-dot::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 9999px;
+            background-color: inherit;
+            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        /* اسکرول بار مدرن */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.4); border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.7); }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-darkbg bg-grid-pattern text-slate-800 dark:text-slate-100 transition-colors duration-300 min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+
+    <!-- هاله نوری تزئینی در بالای صفحه -->
+    <div class="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[250px] bg-indigo-500/15 dark:bg-indigo-600/15 blur-[120px] pointer-events-none -z-10"></div>
+
+    <!-- نوار ناوبری شیشه‌ای (Navbar) -->
+    <header class="sticky top-0 z-30 bg-white/75 dark:bg-darkbg/75 backdrop-blur-xl border-b border-slate-200/70 dark:border-slate-800/70">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 py-3 flex items-center justify-between">
+            <!-- لوگو و عنوان -->
+            <div class="flex items-center gap-3.5">
+                <div class="relative flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white shadow-lg shadow-indigo-500/30">
+                    <i data-lucide="radar" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-extrabold text-base sm:text-lg tracking-tight text-slate-900 dark:text-white">سامانه پایش شبکه و پشتیبانی</h1>
+                        <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">NOC v2.4</span>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block mt-0.5">مانیتورینگ لحظه‌ای گره‌های شبکه داخلی و مدیریت تیکت‌های کاربران</p>
+                </div>
+            </div>
+
+            <!-- ابزارهای سمت چپ هدر -->
+            <div class="flex items-center gap-2.5 sm:gap-3">
+                <!-- نشانگر اتصال زنده -->
+                <div class="hidden md:flex items-center gap-2.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3.5 py-2 rounded-2xl text-xs font-semibold border border-emerald-500/20">
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span class="pulse-dot absolute inline-flex h-full w-full rounded-full bg-emerald-500"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                    <span>پایش خودکار فعال</span>
+                </div>
+
+                <!-- دکمه تست پینگ -->
+                <button onclick="simulateNetworkEvent()" class="group flex items-center gap-2 bg-white dark:bg-darkcard hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 px-3.5 py-2 rounded-2xl text-xs font-semibold shadow-sm transition active:scale-95">
+                    <i data-lucide="refresh-cw" class="w-4 h-4 text-indigo-500 group-hover:rotate-180 transition-transform duration-500"></i>
+                    <span class="hidden sm:inline">تست پینگ تصادفی</span>
+                </button>
+
+                <!-- تغییر تم -->
+                <button onclick="toggleTheme()" class="p-2.5 rounded-2xl bg-white dark:bg-darkcard hover:bg-slate-100 dark:hover:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 text-slate-600 dark:text-slate-300 shadow-sm transition active:scale-95" aria-label="تغییر تم">
+                    <i id="theme-icon" data-lucide="sun" class="w-4 h-4 text-amber-500"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- بدنه اصلی داشبورد -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- بخش ۱: کارت‌های آمار کلیدی (KPI Cards) -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            
+            <!-- کارت کل سیستم‌ها -->
+            <div class="group relative bg-white/90 dark:bg-darkcard/90 backdrop-blur-md rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">کل تجهیزات شبکه</span>
+                        <div class="flex items-baseline gap-2 mt-2">
+                            <h2 id="stat-total-systems" class="text-3xl font-black text-slate-900 dark:text-white">0</h2>
+                            <span class="text-xs font-medium text-slate-400">دستگاه</span>
+                        </div>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <i data-lucide="server" class="w-6 h-6"></i>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                    <span>سرورها، سوئیچ‌ها و کلاینت‌ها</span>
+                    <span class="font-mono text-indigo-500 font-semibold">LAN 192.168.x</span>
+                </div>
+            </div>
+
+            <!-- کارت سیستم‌های متصل (آنلاین) -->
+            <div class="group relative bg-white/90 dark:bg-darkcard/90 backdrop-blur-md rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-300">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">سیستم‌های متصل (Online)</span>
+                        <div class="flex items-baseline gap-2 mt-2">
+                            <h2 id="stat-online-systems" class="text-3xl font-black text-emerald-600 dark:text-emerald-400">0</h2>
+                            <span class="text-xs font-medium text-emerald-600/70 dark:text-emerald-400/70">فعال</span>
+                        </div>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <i data-lucide="wifi" class="w-6 h-6"></i>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+                    <span id="stat-uptime-percent" class="font-bold text-emerald-600 dark:text-emerald-400">100% پایداری</span>
+                    <span class="text-slate-400 font-mono">Avg: 3ms</span>
+                </div>
+            </div>
+
+            <!-- کارت سیستم‌های قطع (آفلاین) -->
+            <div class="group relative bg-white/90 dark:bg-darkcard/90 backdrop-blur-md rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm hover:shadow-xl hover:shadow-rose-500/5 transition-all duration-300 overflow-hidden">
+                <div id="offline-glow" class="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent pointer-events-none"></div>
+                <div class="flex justify-between items-start relative">
+                    <div>
+                        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">سیستم‌های قطع (Offline)</span>
+                        <div class="flex items-baseline gap-2 mt-2">
+                            <h2 id="stat-offline-systems" class="text-3xl font-black text-rose-600 dark:text-rose-400">0</h2>
+                            <span class="text-xs font-medium text-rose-500/70">غیرفعال</span>
+                        </div>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <i data-lucide="wifi-off" class="w-6 h-6"></i>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] relative" id="stat-offline-msg">
+                    <span class="text-rose-500 font-semibold">نیاز به بررسی</span>
+                </div>
+            </div>
+
+            <!-- کارت تیکت‌های ورودی باز -->
+            <div class="group relative bg-white/90 dark:bg-darkcard/90 backdrop-blur-md rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800/80 shadow-sm hover:shadow-xl hover:shadow-amber-500/5 transition-all duration-300">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">تیکت‌های ورودی باز</span>
+                        <div class="flex items-baseline gap-2 mt-2">
+                            <h2 id="stat-open-tickets" class="text-3xl font-black text-amber-500 dark:text-amber-400">0</h2>
+                            <span class="text-xs font-medium text-amber-500/70">در انتظار</span>
+                        </div>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <i data-lucide="ticket" class="w-6 h-6"></i>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+                    <span id="stat-urgent-tickets" class="font-bold text-rose-500">0 مورد فوری</span>
+                    <span id="stat-total-tickets" class="text-slate-400">کل: 0</span>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- بخش ۲: وضعیت سیستم‌های شبکه و سلامت دپارتمان‌ها -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- لیست گره‌های شبکه (8 ستون) -->
+            <div class="lg:col-span-8 bg-white/90 dark:bg-darkcard/90 backdrop-blur-md rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm flex flex-col">
+                <div class="p-5 sm:px-6 border-b border-slate-200/70 dark:border-slate-800/70 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                            <span class="w-2 h-6 rounded-full bg-indigo-500"></span>
+                            مانیتورینگ لحظه‌ای سیستم‌های داخلی
+                        </h3>
+                        <p class="text-[11px] text-slate-400 mt-1 mr-4">برای شبیه‌سازی قطع یا وصل شدن، روی کارت هر سیستم کلیک کنید</p>
+                    </div>
+
+                    <!-- تب‌های فیلتر وضعیت سیستم -->
+                    <div class="flex bg-slate-100 dark:bg-slate-800/90 p-1 rounded-2xl text-xs border border-slate-200/50 dark:border-slate-700/50">
+                        <button onclick="filterSystems('all')" id="sys-filter-all" class="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-700 shadow-sm font-bold text-slate-900 dark:text-white transition">همه</button>
+                        <button onclick="filterSystems('online')" id="sys-filter-online" class="px-3.5 py-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium transition">متصل</button>
+                        <button onclick="filterSystems('offline')" id="sys-filter-offline" class="px-3.5 py-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium transition">قطع شده</button>
+                    </div>
+                </div>
+
+                <!-- شبکه کارت‌های سیستم‌ها -->
+                <div id="systems-grid" class="p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 max-h-[370px] overflow-y-auto">
+                    <!-- کارت‌ها توسط جاوااسکریپت ساخته می‌شوند -->
+                </div>
+            </div>
+
+            <!-- پنل سلامت شبکه و آمار واحدها (4 ستون) -->
+            <div class="lg:col-span-4 bg-white/90 dark:bg-darkcard/90 backdrop-blur-md rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm p-5 sm:p-6 flex flex-col justify-between">
+                <div>
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2 mb-5">
+                        <span class="w-2 h-6 rounded-full bg-emerald-500"></span>
+                        تحلیل پایداری شبکه
+                    </h3>
+
+                    <!-- باکس درصد پایداری کل -->
+                    <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800/70 dark:to-slate-900/70 border border-slate-200/60 dark:border-slate-700/60 mb-5">
+                        <div class="flex items-center justify-between mb-2.5">
+                            <span class="text-xs font-medium text-slate-500 dark:text-slate-400">نرخ دسترسی‌پذیری کل</span>
+                            <span id="health-bar-text" class="text-lg font-black text-emerald-600 dark:text-emerald-400">0%</span>
+                        </div>
+                        <div class="w-full h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden flex p-0.5">
+                            <div id="health-bar-online" class="bg-gradient-to-l from-emerald-400 to-emerald-600 h-full rounded-full transition-all duration-500" style="width: 80%"></div>
+                            <div id="health-bar-offline" class="bg-rose-500 h-full rounded-full transition-all duration-500 mr-0.5" style="width: 20%"></div>
+                        </div>
+                        <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-3">
+                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> آنلاین و در دسترس</span>
+                            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span> بدون پاسخ (Timeout)</span>
+                        </div>
+                    </div>
+
+                    <!-- لیست وضعیت واحدهای سازمانی -->
+                    <div class="space-y-2.5">
+                        <span class="text-xs font-bold text-slate-400 block mb-2">وضعیت به تفکیک واحدها</span>
+                        <div id="department-stats" class="space-y-2.5">
+                            <!-- توسط JS رندر می‌شود -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- فوتر کارت سلامت -->
+                <div class="mt-6 pt-4 border-t border-slate-200/70 dark:border-slate-800/70 flex items-center justify-between text-xs">
+                    <span class="text-slate-400 flex items-center gap-1.5">
+                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                        آخرین بروزرسانی:
+                    </span>
+                    <span id="last-checked-time" class="font-mono font-bold text-indigo-600 dark:text-indigo-400">--:--:--</span>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- بخش ۳: جدول تیکت‌های ورودی -->
+        <section class="bg-white/90 dark:bg-darkcard/90 backdrop-blur-md rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm overflow-hidden">
+            <div class="p-5 sm:px-6 border-b border-slate-200/70 dark:border-slate-800/70 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                        <span class="w-2 h-6 rounded-full bg-amber-500"></span>
+                        تیکت‌های ورودی پشتیبانی فنی
+                    </h3>
+                    <p class="text-[11px] text-slate-400 mt-1 mr-4">مدیریت، پیگیری و تغییر وضعیت درخواست‌های ثبت شده کاربران</p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <!-- باکس جستجو -->
+                    <div class="relative flex-1 sm:flex-initial">
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2"></i>
+                        <input type="text" id="ticket-search" onkeyup="renderTickets()" placeholder="جستجوی تیکت، کاربر یا IP..." class="w-full sm:w-60 bg-slate-100 dark:bg-slate-800/90 border border-transparent focus:border-indigo-500 rounded-2xl pr-10 pl-4 py-2 text-xs outline-none transition">
+                    </div>
+
+                    <!-- فیلتر وضعیت -->
+                    <select id="ticket-status-filter" onchange="renderTickets()" class="bg-slate-100 dark:bg-slate-800/90 border border-transparent focus:border-indigo-500 rounded-2xl px-3.5 py-2 text-xs font-medium outline-none cursor-pointer">
+                        <option value="all">همه وضعیت‌ها</option>
+                        <option value="open">باز (در انتظار)</option>
+                        <option value="in-progress">در حال بررسی</option>
+                        <option value="resolved">حل شده</option>
+                    </select>
+
+                    <!-- دکمه ثبت تیکت جدید -->
+                    <button onclick="openNewTicketModal()" class="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white px-4 py-2 rounded-2xl text-xs font-bold shadow-lg shadow-indigo-500/25 transition active:scale-95">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>ثبت تیکت جدید</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- جدول تیکت‌ها -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-right border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50/80 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 text-[11px] font-bold uppercase tracking-wider border-b border-slate-200/70 dark:border-slate-800/70">
+                            <th class="py-4 px-5">شناسه</th>
+                            <th class="py-4 px-5">عنوان درخواست / مشکل</th>
+                            <th class="py-4 px-5">ارسال‌کننده و سیستم</th>
+                            <th class="py-4 px-5">اولویت</th>
+                            <th class="py-4 px-5">وضعیت</th>
+                            <th class="py-4 px-5">زمان ثبت</th>
+                            <th class="py-4 px-5 text-center">عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tickets-table-body" class="divide-y divide-slate-200/60 dark:divide-slate-800/60 text-sm">
+                        <!-- ردیف‌ها توسط JS رندر می‌شوند -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- مودال ثبت تیکت جدید -->
+    <div id="new-ticket-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+        <div class="bg-white dark:bg-darkcard border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl transform transition-all">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-200/80 dark:border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                        <i data-lucide="file-plus-2" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white">ثبت تیکت پشتیبانی جدید</h3>
+                </div>
+                <button onclick="closeNewTicketModal()" class="p-1.5 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="new-ticket-form" onsubmit="handleCreateTicket(event)" class="mt-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">موضوع مشکل یا درخواست</label>
+                    <input type="text" id="t-title" required placeholder="مثال: عدم اتصال به سرور حسابداری" class="w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500 transition">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">نام کاربر و واحد</label>
+                        <input type="text" id="t-user" required placeholder="سارا محمدی (مالی)" class="w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500 transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">آدرس IP سیستم</label>
+                        <input type="text" id="t-ip" required placeholder="192.168.2.45" class="w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-sm font-mono outline-none focus:border-indigo-500 text-left transition" dir="ltr">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">سطح اولویت</label>
+                    <select id="t-priority" class="w-full bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500 transition">
+                        <option value="low">عادی (Low)</option>
+                        <option value="medium" selected>متوسط (Medium)</option>
+                        <option value="urgent">فوری و بحرانی (Urgent)</option>
+                    </select>
+                </div>
+
+                <div class="pt-4 flex items-center justify-end gap-2.5">
+                    <button type="button" onclick="closeNewTicketModal()" class="px-4 py-2.5 rounded-2xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition">انصراف</button>
+                    <button type="submit" class="px-5 py-2.5 rounded-2xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 transition">ثبت و ارسال تیکت</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- کانتینر اعلان‌های شناور (Toast) -->
+    <div id="toast-container" class="fixed bottom-5 left-5 z-50 flex flex-col gap-2.5"></div>
+
+    <script>
+        // داده‌های نمونه سیستم‌های شبکه داخلی
+        let systems = [
+            { id: 'SRV-01', name: 'سرور اصلی دیتابیس', ip: '192.168.1.10', dept: 'اتاق سرور', type: 'server', status: 'online', ping: '1ms' },
+            { id: 'SRV-02', name: 'سرور ایمیل و اتوماسیون', ip: '192.168.1.11', dept: 'اتاق سرور', type: 'server', status: 'online', ping: '2ms' },
+            { id: 'SW-CORE', name: 'سوئیچ مرکزی سیسکو', ip: '192.168.1.1', dept: 'اتاق سرور', type: 'router', status: 'online', ping: '1ms' },
+            { id: 'NAS-01', name: 'سرور بکاپ و ذخیره‌ساز', ip: '192.168.1.15', dept: 'اتاق سرور', type: 'server', status: 'online', ping: '2ms' },
+            { id: 'PC-ACC-01', name: 'سیستم ارشد حسابداری', ip: '192.168.2.14', dept: 'مالی و اداری', type: 'pc', status: 'online', ping: '4ms' },
+            { id: 'PC-ACC-02', name: 'سیستم خزانه‌داری', ip: '192.168.2.15', dept: 'مالی و اداری', type: 'pc', status: 'offline', ping: 'Timeout' },
+            { id: 'PRN-01', name: 'پرینتر شبکه طبقه دوم', ip: '192.168.2.50', dept: 'مالی و اداری', type: 'printer', status: 'online', ping: '7ms' },
+            { id: 'PC-SAL-01', name: 'کارشناس فروش ۱', ip: '192.168.3.20', dept: 'فروش و بازاریابی', type: 'pc', status: 'online', ping: '5ms' },
+            { id: 'PC-SAL-02', name: 'کارشناس فروش ۲', ip: '192.168.3.21', dept: 'فروش و بازاریابی', type: 'pc', status: 'online', ping: '6ms' },
+            { id: 'PC-SAL-03', name: 'مدیر فروش', ip: '192.168.3.22', dept: 'فروش و بازاریابی', type: 'pc', status: 'offline', ping: 'Timeout' },
+            { id: 'AP-FL1', name: 'اکسس پوینت لابی', ip: '192.168.4.5', dept: 'پشتیبانی و فنی', type: 'wifi', status: 'online', ping: '3ms' },
+            { id: 'PC-IT-01', name: 'ایستگاه کاری ادمین', ip: '192.168.4.10', dept: 'پشتیبانی و فنی', type: 'pc', status: 'online', ping: '2ms' }
+        ];
+
+        // داده‌های نمونه تیکت‌های ورودی
+        let tickets = [
+            { id: 'TK-1042', title: 'عدم دسترسی به پوشه اشتراکی حسابداری', user: 'علی رضایی (مالی)', ip: '192.168.2.15', priority: 'urgent', status: 'open', time: '۱۰ دقیقه پیش' },
+            { id: 'TK-1041', title: 'قطعی کامل اتصال شبکه و اینترنت', user: 'مریم کاظمی (فروش)', ip: '192.168.3.22', priority: 'urgent', status: 'in-progress', time: '۲۵ دقیقه پیش' },
+            { id: 'TK-1040', title: 'کندی سرعت سامانه اتوماسیون اداری', user: 'حسین کریمی (اداری)', ip: '192.168.2.18', priority: 'medium', status: 'open', time: '۱ ساعت پیش' },
+            { id: 'TK-1039', title: 'نصب درایور پرینتر جدید روی سیستم', user: 'زهرا احمدی (بازاریابی)', ip: '192.168.3.20', priority: 'low', status: 'resolved', time: '۳ ساعت پیش' },
+            { id: 'TK-1038', title: 'درخواست تعریف دسترسی VPN برای دورکاری', user: 'امیرحسین نوری (مدیریت)', ip: '192.168.1.25', priority: 'medium', status: 'resolved', time: 'دیروز' }
+        ];
+
+        let currentSystemFilter = 'all';
+
+        // بروزرسانی کل اجزای داشبورد
+        function updateDashboard() {
+            updateKPIs();
+            renderSystems();
+            renderDepartmentStats();
+            renderTickets();
+            updateClock();
+            lucide.createIcons();
+        }
+
+        // بروزرسانی کارت‌های آمار بالایی
+        function updateKPIs() {
+            const total = systems.length;
+            const online = systems.filter(s => s.status === 'online').length;
+            const offline = total - online;
+            const uptimePercent = total > 0 ? Math.round((online / total) * 100) : 0;
+
+            document.getElementById('stat-total-systems').innerText = total;
+            document.getElementById('stat-online-systems').innerText = online;
+            document.getElementById('stat-offline-systems').innerText = offline;
+            document.getElementById('stat-uptime-percent').innerText = `${uptimePercent}% پایداری`;
+
+            // نوار سلامت
+            document.getElementById('health-bar-text').innerText = `${uptimePercent}%`;
+            document.getElementById('health-bar-online').style.width = `${uptimePercent}%`;
+            document.getElementById('health-bar-offline').style.width = `${100 - uptimePercent}%`;
+
+            // پیام کارت سیستم‌های قطع
+            const offlineMsg = document.getElementById('stat-offline-msg');
+            if (offline > 0) {
+                offlineMsg.innerHTML = `<span class="flex items-center gap-1.5 text-rose-500 font-bold"><i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> ${offline} سیستم نیازمند بررسی</span>`;
+            } else {
+                offlineMsg.innerHTML = `<span class="flex items-center gap-1.5 text-emerald-500 font-bold"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> بدون قطعی در شبکه</span>`;
+            }
+
+            // آمار تیکت‌ها
+            const openTickets = tickets.filter(t => t.status !== 'resolved');
+            const urgentTickets = openTickets.filter(t => t.priority === 'urgent');
+            document.getElementById('stat-open-tickets').innerText = openTickets.length;
+            document.getElementById('stat-urgent-tickets').innerText = `${urgentTickets.length} مورد فوری`;
+            document.getElementById('stat-total-tickets').innerText = `از کل ${tickets.length} تیکت`;
+        }
+
+        // رندر کارت‌های سیستم‌های شبکه
+        function renderSystems() {
+            const grid = document.getElementById('systems-grid');
+            grid.innerHTML = '';
+
+            const filtered = systems.filter(sys => {
+                if (currentSystemFilter === 'all') return true;
+                return sys.status === currentSystemFilter;
+            });
+
+            filtered.forEach(sys => {
+                const isOnline = sys.status === 'online';
+                const iconName = sys.type === 'server' ? 'server' : sys.type === 'router' ? 'router' : sys.type === 'printer' ? 'printer' : sys.type === 'wifi' ? 'wifi' : 'monitor';
+
+                const card = document.createElement('div');
+                card.onclick = () => toggleSingleSystem(sys.id);
+                card.className = `group cursor-pointer p-4 rounded-2xl border transition-all duration-200 flex items-center justify-between ${
+                    isOnline 
+                    ? 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/70 dark:border-slate-700/60 hover:border-emerald-500/50 hover:bg-emerald-500/[0.03]' 
+                    : 'bg-rose-500/[0.06] dark:bg-rose-500/10 border-rose-500/30 hover:border-rose-500'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
+                            isOnline ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                        }">
+                            <i data-lucide="${iconName}" class="w-5 h-5"></i>
+                        </div>
+                        <div class="truncate">
+                            <h4 class="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">${sys.name}</h4>
+                            <div class="flex items-center gap-1.5 mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                <span class="font-mono" dir="ltr">${sys.ip}</span>
+                                <span>•</span>
+                                <span class="truncate">${sys.dept}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-end shrink-0 mr-2">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            isOnline ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                        }">
+                            <span class="w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-rose-500 animate-ping'}"></span>
+                            ${isOnline ? 'متصل' : 'قطع'}
+                        </span>
+                        <span class="text-[10px] font-mono text-slate-400 mt-1.5" dir="ltr">${sys.ping}</span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // فیلتر وضعیت سیستم‌ها
+        function filterSystems(type) {
+            currentSystemFilter = type;
+            ['all', 'online', 'offline'].forEach(t => {
+                const btn = document.getElementById(`sys-filter-${t}`);
+                if (t === type) {
+                    btn.className = 'px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-700 shadow-sm font-bold text-slate-900 dark:text-white transition';
+                } else {
+                    btn.className = 'px-3.5 py-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium transition';
+                }
+            });
+            renderSystems();
+            lucide.createIcons();
+        }
+
+        // رندر وضعیت دپارتمان‌ها
+        function renderDepartmentStats() {
+            const container = document.getElementById('department-stats');
+            const depts = [...new Set(systems.map(s => s.dept))];
+            container.innerHTML = '';
+
+            depts.forEach(dept => {
+                const deptSys = systems.filter(s => s.dept === dept);
+                const onlineCount = deptSys.filter(s => s.status === 'online').length;
+                const totalCount = deptSys.length;
+                const isHealthy = onlineCount === totalCount;
+
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/40';
+                row.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full ${isHealthy ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-amber-500 shadow-sm shadow-amber-500/50'}"></span>
+                        <span class="text-xs font-semibold text-slate-700 dark:text-slate-200">${dept}</span>
+                    </div>
+                    <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60">
+                        ${onlineCount} / ${totalCount}
+                    </span>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        // رندر جدول تیکت‌ها
+        function renderTickets() {
+            const tbody = document.getElementById('tickets-table-body');
+            const search = document.getElementById('ticket-search').value.toLowerCase();
+            const statusFilter = document.getElementById('ticket-status-filter').value;
+            tbody.innerHTML = '';
+
+            const filtered = tickets.filter(t => {
+                const matchesStatus = statusFilter === 'all' || t.status === statusFilter;
+                const matchesSearch = t.title.toLowerCase().includes(search) || 
+                                      t.user.toLowerCase().includes(search) || 
+                                      t.ip.includes(search) ||
+                                      t.id.toLowerCase().includes(search);
+                return matchesStatus && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="py-10 text-center text-slate-400 text-xs">
+                            تیکتی با این مشخصات یافت نشد.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            filtered.forEach(ticket => {
+                const priorityBadges = {
+                    urgent: '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">فوری</span>',
+                    medium: '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">متوسط</span>',
+                    low: '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20">عادی</span>'
+                };
+
+                const statusBadges = {
+                    open: '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400"><span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>باز</span>',
+                    'in-progress': '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"><span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>در حال بررسی</span>',
+                    resolved: '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>حل شده</span>'
+                };
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/90 dark:hover:bg-slate-800/30 transition-colors';
+                tr.innerHTML = `
+                    <td class="py-4 px-5 font-mono text-xs font-extrabold text-indigo-600 dark:text-indigo-400">${ticket.id}</td>
+                    <td class="py-4 px-5 font-semibold text-slate-800 dark:text-slate-100 text-xs sm:text-sm">${ticket.title}</td>
+                    <td class="py-4 px-5">
+                        <div class="text-xs font-semibold text-slate-700 dark:text-slate-300">${ticket.user}</div>
+                        <div class="text-[11px] font-mono text-slate-400 mt-0.5" dir="ltr">${ticket.ip}</div>
+                    </td>
+                    <td class="py-4 px-5">${priorityBadges[ticket.priority]}</td>
+                    <td class="py-4 px-5">${statusBadges[ticket.status]}</td>
+                    <td class="py-4 px-5 text-xs text-slate-500 dark:text-slate-400">${ticket.time}</td>
+                    <td class="py-4 px-5 text-center">
+                        ${ticket.status !== 'resolved' ? `
+                            <button onclick="advanceTicketStatus('${ticket.id}')" class="bg-indigo-500/10 hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400 hover:text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition">
+                                ${ticket.status === 'open' ? 'شروع بررسی' : 'بستن تیکت'}
+                            </button>
+                        ` : `
+                            <span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                <i data-lucide="check-check" class="w-4 h-4"></i> تکمیل شد
+                            </span>
+                        `}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        // تغییر مرحله‌ای وضعیت تیکت
+        function advanceTicketStatus(id) {
+            const ticket = tickets.find(t => t.id === id);
+            if (!ticket) return;
+
+            if (ticket.status === 'open') {
+                ticket.status = 'in-progress';
+                showToast(`تیکت ${id} در وضعیت «در حال بررسی» قرار گرفت.`, 'info');
+            } else if (ticket.status === 'in-progress') {
+                ticket.status = 'resolved';
+                showToast(`تیکت ${id} با موفقیت بسته شد.`, 'success');
+            }
+            updateDashboard();
+        }
+
+        // قطع و وصل کردن یک سیستم با کلیک
+        function toggleSingleSystem(id) {
+            const sys = systems.find(s => s.id === id);
+            if (!sys) return;
+
+            if (sys.status === 'online') {
+                sys.status = 'offline';
+                sys.ping = 'Timeout';
+                showToast(`هشدار قطعی: اتصال ${sys.name} (${sys.ip}) از دست رفت!`, 'error');
+            } else {
+                sys.status = 'online';
+                sys.ping = `${Math.floor(Math.random() * 6) + 1}ms`;
+                showToast(`اتصال ${sys.name} مجدداً برقرار شد.`, 'success');
+            }
+            updateDashboard();
+        }
+
+        // شبیه‌سازی تغییر تصادفی پینگ
+        function simulateNetworkEvent() {
+            const randomIndex = Math.floor(Math.random() * systems.length);
+            toggleSingleSystem(systems[randomIndex].id);
+        }
+
+        // باز و بسته کردن مودال تیکت جدید
+        function openNewTicketModal() {
+            const modal = document.getElementById('new-ticket-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeNewTicketModal() {
+            const modal = document.getElementById('new-ticket-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.getElementById('new-ticket-form').reset();
+        }
+
+        function handleCreateTicket(e) {
+            e.preventDefault();
+            const title = document.getElementById('t-title').value;
+            const user = document.getElementById('t-user').value;
+            const ip = document.getElementById('t-ip').value;
+            const priority = document.getElementById('t-priority').value;
+
+            const newId = `TK-${1043 + tickets.length}`;
+            tickets.unshift({
+                id: newId,
+                title,
+                user,
+                ip,
+                priority,
+                status: 'open',
+                time: 'هم‌اکنون'
+            });
+
+            closeNewTicketModal();
+            updateDashboard();
+            showToast(`تیکت جدید با کد ${newId} ثبت شد.`, 'success');
+        }
+
+        // نمایش پیام اعلان (Toast)
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const styles = {
+                success: 'bg-emerald-600 text-white shadow-emerald-500/30',
+                error: 'bg-rose-600 text-white shadow-rose-500/30',
+                info: 'bg-slate-800 text-white border border-slate-700 shadow-slate-900/40'
+            };
+
+            toast.className = `${styles[type]} px-4 py-3 rounded-2xl shadow-xl text-xs font-bold flex items-center gap-2.5 transform transition-all duration-300 translate-y-3 opacity-0`;
+            toast.innerHTML = `<span>${message}</span>`;
+            
+            container.appendChild(toast);
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-3', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-3');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // تغییر تم تیره و روشن
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                icon.setAttribute('data-lucide', 'moon');
+                icon.classList.remove('text-amber-500');
+                icon.classList.add('text-indigo-600');
+            } else {
+                html.classList.add('dark');
+                icon.setAttribute('data-lucide', 'sun');
+                icon.classList.remove('text-indigo-600');
+                icon.classList.add('text-amber-500');
+            }
+            lucide.createIcons();
+        }
+
+        // ساعت زنده
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('last-checked-time').innerText = now.toLocaleTimeString('fa-IR');
+        }
+
+        window.onload = function() {
+            updateDashboard();
+            setInterval(updateClock, 1000);
+        };
+    </script>
+</body>
+</html>
